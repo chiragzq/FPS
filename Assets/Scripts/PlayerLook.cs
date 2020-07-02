@@ -3,13 +3,16 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerLook : MonoBehaviour {
-    float INPUT_MULTIPLIER = 180.0f;
+    float INPUT_MULTIPLIER = 210.0f;
     float xRotation = 0.0f;
 
     public Transform playerTransform;
 
     void Start() {
         Cursor.lockState = CursorLockMode.Locked;
+
+        // Application.targetFrameRate = 5;
+        // QualitySettings.vSyncCount = 0;
     }
 
     void Update() {
