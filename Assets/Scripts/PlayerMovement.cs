@@ -20,21 +20,42 @@ public class PlayerMovement : MonoBehaviour {
     public LayerMask groundMask;
     public LayerMask ceilingMask;
 
+    bool prevGround;
     public bool isGround;
     public bool isCeiling;
 
     public Vector3 horizontalVel = Vector3.zero;
     public Vector3 normalVel = Vector3.zero;
 
-    public Vector3 debug;
+    public AudioSource audioSource;
+    AudioClip[] walkAudio = new AudioClip[6];
+    AudioClip[] jumpLandAudio = new AudioClip[6];
+
+
+    public float audioPlayThreshold = 195f;
+    public float audioCountdownThreshold = 6f;
+    float audioThresholdLeft; 
+
+    void Start() {
+        for(int i = 1;i <= 6;i ++) {
+            walkAudio[i - 1] = Resources.Load<AudioClip>("Sounds/footstep/footstep" + i);
+            jumpLandAudio[i - 1] = Resources.Load<AudioClip>("Sounds/jumpland/jumpland" + i);
+        }
+        audioThresholdLeft = audioPlayThreshold;
+    }
 
     // Update is called once per frame
     void Update() {
         float xAccel = Input.GetAxis("Horizontal");
         float zAccel = Input.GetAxis("Vertical");
 
+        prevGround = isGround;
         isGround = Physics.CheckSphere(groundDetector.position, GROUND_DETECT_RADIUS, groundMask);
         isCeiling = Physics.CheckSphere(ceilingDetector.position, GROUND_DETECT_RADIUS, ceilingMask);
+
+        if(!prevGround && isGround && normalVel.y < -7f) {
+            audioSource.PlayOneShot(jumpLandAudio[Random.Range(0, 6)], 0.5f);
+        }
 
         Vector3 acceleration = (transform.right * xAccel + transform.forward * zAccel) * ACCELERATION;
         if(isGround && Input.GetAxis("Jump") == 0) {
@@ -45,7 +66,6 @@ public class PlayerMovement : MonoBehaviour {
         } else {
             Vector3 parallelAccel = Vector3.Project(acceleration, horizontalVel);
             if(parallelAccel.normalized == horizontalVel.normalized) {  // Prevent mid air acceleration
-                debug = parallelAccel;
                 parallelAccel = Vector3.zero;
             } else { // Only slow down in midair, can't change direction
                 parallelAccel = Vector3.ClampMagnitude(parallelAccel, horizontalVel.magnitude) * 5;
@@ -74,6 +94,15 @@ public class PlayerMovement : MonoBehaviour {
         if(isGround) {
             if(Input.GetAxis("Jump") > 0) {
                 normalVel.y = JUMP_VELOCITY;
+            }
+        }
+
+
+        if(isGround && horizontalVel.sqrMagnitude >= audioCountdownThreshold * audioCountdownThreshold) {
+            audioThresholdLeft -= horizontalVel.magnitude * Time.deltaTime;
+            if(audioThresholdLeft < 0) {
+                audioSource.PlayOneShot(walkAudio[Random.Range(0, 6)], 0.5f);
+                audioThresholdLeft += audioPlayThreshold;
             }
         }
 
