@@ -6,10 +6,13 @@ public class PlayerMovement : MonoBehaviour {
     public CharacterController controller;
 
     float ACCELERATION = 90f;
-    float FRICTION_SCALE = 10f;
+    float FRICTION_SCALE = 9f;
     float GRAVITATIONAL_FIELD_STRENGTH = 48f;
     float JUMP_VELOCITY = 14f;
-    public float MAX_VEL = 10f;
+    public float maxVel = 10f;
+
+    public float RUN_SPEED = 10f;
+    float WALK_SPEED = 5f;
 
     float GROUND_DETECT_RADIUS = 0.2f;
     public Transform groundDetector;
@@ -18,9 +21,12 @@ public class PlayerMovement : MonoBehaviour {
     public LayerMask ceilingMask;
 
     public bool isGround;
+    public bool isCeiling;
 
     public Vector3 horizontalVel = Vector3.zero;
     public Vector3 normalVel = Vector3.zero;
+
+    public Vector3 debug;
 
     // Update is called once per frame
     void Update() {
@@ -28,40 +34,56 @@ public class PlayerMovement : MonoBehaviour {
         float zAccel = Input.GetAxis("Vertical");
 
         isGround = Physics.CheckSphere(groundDetector.position, GROUND_DETECT_RADIUS, groundMask);
-        bool isCeiling = Physics.CheckSphere(ceilingDetector.position, GROUND_DETECT_RADIUS, ceilingMask);
+        isCeiling = Physics.CheckSphere(ceilingDetector.position, GROUND_DETECT_RADIUS, ceilingMask);
 
-        Vector3 acceleration = Vector3.zero;
-        if(isGround) {
-            acceleration = new Vector3(xAccel, 0f, zAccel).normalized * ACCELERATION;
+        Vector3 acceleration = (transform.right * xAccel + transform.forward * zAccel) * ACCELERATION;
+        if(isGround && Input.GetAxis("Jump") == 0) {
             if(normalVel.y < -5f) 
                 normalVel.y = -5f;
-            acceleration.y = -5f;
+            else
+                acceleration.y = -5f;
         } else {
-            acceleration = new Vector3(0f, -GRAVITATIONAL_FIELD_STRENGTH, 0f);
+            Vector3 parallelAccel = Vector3.Project(acceleration, horizontalVel);
+            if(parallelAccel.normalized == horizontalVel.normalized) {  // Prevent mid air acceleration
+                debug = parallelAccel;
+                parallelAccel = Vector3.zero;
+            } else { // Only slow down in midair, can't change direction
+                parallelAccel = Vector3.ClampMagnitude(parallelAccel, horizontalVel.magnitude) * 5;
+            }
+            Vector3 rotatedVelocity = new Vector3(horizontalVel.z, 0, -horizontalVel.x);
+            Vector3 normalAccel = Vector3.Project(acceleration, rotatedVelocity) / 8;
+            acceleration = parallelAccel + normalAccel;
+            acceleration.y = -GRAVITATIONAL_FIELD_STRENGTH;
         }
 
         if(!isGround && isCeiling) {
             normalVel.y *= -1;
         }
 
-        if(isGround) {
+        if(isGround && Input.GetAxis("Jump") == 0) {
             acceleration += -FRICTION_SCALE * horizontalVel;
         }
         
         // Velocity verlet
         Vector3 absoluteDelta = normalVel * Time.deltaTime + 0.5f * acceleration * Time.deltaTime * Time.deltaTime;
-        Vector3 relativeDelta = transform.right * absoluteDelta.x + transform.up * absoluteDelta.y + transform.forward * absoluteDelta.z;
-        controller.Move(relativeDelta);
+        controller.Move(absoluteDelta);
 
         normalVel += acceleration * Time.deltaTime;
         horizontalVel += acceleration * Time.deltaTime;
         horizontalVel.y = 0;
         if(isGround) {
-            if(Input.GetButtonDown("Jump")) {
+            if(Input.GetAxis("Jump") > 0) {
                 normalVel.y = JUMP_VELOCITY;
             }
         }
-        horizontalVel = Vector3.ClampMagnitude(horizontalVel, MAX_VEL);
+
+        if(Input.GetAxis("Walk") > 0) {
+            maxVel = WALK_SPEED;
+        } else {
+            maxVel = RUN_SPEED;
+        }
+
+        horizontalVel = Vector3.ClampMagnitude(horizontalVel, maxVel);
         normalVel.x = horizontalVel.x;
         normalVel.z = horizontalVel.z;
     }

@@ -18,14 +18,12 @@ public class WeaponBob : MonoBehaviour
     {
         playerMovement = player.GetComponent<PlayerMovement>();
         initialPosition = transform.localPosition;
-        Debug.Log(player.transform.localPosition);
-        Debug.Log(player.transform.position);
     }
 
     // Update is called once per frame
     void Update()
     {
-        float horizontalVelocityRatio = horizontalAvg.update(playerMovement.horizontalVel.sqrMagnitude / (playerMovement.MAX_VEL * playerMovement.MAX_VEL));
+        float horizontalVelocityRatio = horizontalAvg.update(playerMovement.horizontalVel.sqrMagnitude / (playerMovement.RUN_SPEED * playerMovement.RUN_SPEED));
         float rawVertVelRatio = playerMovement.isGround ? 0 : Mathf.Clamp(playerMovement.normalVel.y / 10f, -1f, 1f);
         float verticalVelocityRatio = verticalAvg.update(Mathf.Sqrt(Mathf.Abs(rawVertVelRatio)) * Mathf.Sign(rawVertVelRatio));
         transform.localPosition = initialPosition + horizontalVelocityRatio * velocityDeltas + verticalVelocityRatio * verticalDeltas;
